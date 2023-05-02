@@ -104,9 +104,7 @@ class ComposedDomain:
     def extract_hp_boxes(self):
         # TODO decide: get hp_boxes based on grad_p or based on v or get squared boxes around hp
         material_ids = self.get_input_field_from_name("Material ID")
-        # plt.imshow(np.flip(material_ids.T,axis=0))
-        # plt.show()
-        size_hp_box = [64, 16] #[128,16]
+        size_hp_box = [64, 16] #[128,16] #TODO not fixed here
         distance_hp_corner = [24, 10]
         hp_boxes = []
         pos_hps = np.array(np.where(material_ids == np.max(material_ids))).T
@@ -116,7 +114,6 @@ class ComposedDomain:
             corner_ru = pos_hp + np.array(size_hp_box) - np.array(distance_hp_corner)   # corner right up
             assert corner_ld[0] >= 0 and corner_ru[0] < self.inputs.shape[1], f"HP BOX at {pos_hp} is in x-direction not in domain"
             assert corner_ld[1] >= 0 and corner_ru[1] < self.inputs.shape[2], f"HP BOX at {pos_hp} is in y-direction not in domain"
-            # tmp = self.inputs[:, pos_hp[0]-size_hp_box[0]//2:pos_hp[0]+size_hp_box[0]//2, pos_hp[1]-size_hp_box[1]//2:pos_hp[1]+size_hp_box[1]//2]
             tmp_input = self.inputs[:, corner_ld[0]:corner_ru[0], corner_ld[1]:corner_ru[1]]
             tmp_hp = SingleHeatPump(id = f"RUN_{idx}", pos = pos_hp, orientation = 0, inputs = tmp_input, dist_corner_hp=distance_hp_corner)
             hp_boxes.append(tmp_hp)
@@ -164,7 +161,6 @@ class ComposedDomain:
             plt.gca().invert_yaxis()
             plt.xlabel("y [cells]")
             plt.ylabel("x [cells]")
-            # plt.suptitle(f"{property}")
             _aligned_colorbar(label=property)
             idx += 1
         plt.show()
@@ -175,12 +171,11 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
     - 1hp-boxes are generated already
     - network is trained
     """
-    remote = False
-
     # prepare large dataset if not done yet
+
+    remote = False
     if os.path.exists("/scratch/sgs/pelzerja/"):
         remote = True
-
     if remote:
         raw_data_dir = "/scratch/sgs/pelzerja/datasets/2hps_demonstrator"
         datasets_path = "/home/pelzerja/pelzerja/test_nn/datasets_prepared/2hps_demonstrator"
@@ -211,24 +206,12 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
     # apply learned NN to predict the heat plumes
     model = load_model({"model_choice": "unet", "in_channels": 4}, model_path, "model", device)
     dataset_boxes_info = SimulationDatasetInfo(datasets_path_model_trained_with)
-    # single_hps = get_single_hps(dataset_boxes_info)
     for hp in single_hps:
         hp.apply_nn(model, dataset_boxes_info)
         # compose learned fields into large domain with list of ids, pos, orientations
         domain.add_hp(hp)
     domain.plot_field("tkis", dataset_boxes_info)
-    #LATER: smooth large domain and extend heat plumes
-
-# def get_single_hps(dataset_info:str):
-#     # Zuordnung: RUN_ID.pt file <-> id+pos+orientation
-#     csv_path = os.path.join(dataset_info.path, "hp_positions.csv")
-#     single_hps = []
-#     with open(csv_path, newline='') as csvfile:
-#         reader = csv.reader(csvfile, delimiter=',')
-#         next(reader)
-#         for row in reader:
-#             single_hps.append(SingleHeatPump(id=row[0], pos=[row[1], row[2]], orientation=row[3]))
-#     return single_hps
+    #TODO LATER: smooth large domain and extend heat plumes
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
