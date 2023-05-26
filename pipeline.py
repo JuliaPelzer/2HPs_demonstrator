@@ -171,7 +171,6 @@ class HeatPump:
         output = output.squeeze().detach().numpy()
         output = domain.reverse_norm(output, property="Temperature [C]")
         self.field = output
-        save(Tensor(output), f"{self.id}.pt")
 
 class Stitching:
     def __init__(self, method, background_temperature):
