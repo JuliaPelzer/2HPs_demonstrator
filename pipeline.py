@@ -5,8 +5,7 @@ import pathlib
 import numpy as np
 from math import cos, sin
 import matplotlib.pyplot as plt
-from torch import unsqueeze, load, Tensor
-# from data_domain import Domain 
+from torch import squeeze, unsqueeze, load, Tensor, save
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN") # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")      # relevant for local   
@@ -14,6 +13,7 @@ from networks.models import load_model
 from utils.visualize_data import _aligned_colorbar
 from prepare_dataset import prepare_dataset, expand_property_names
 from data.utils import load_yaml
+from data.transforms import SignedDistanceTransform
 
 class Domain:
     def __init__(self, info_path:str, stitching_method:str="max"):
@@ -66,16 +66,16 @@ class Domain:
     def extract_hp_boxes(self):
         # TODO decide: get hp_boxes based on grad_p or based on v or get squared boxes around hp
         material_ids = self.get_input_field_from_name("Material ID")
-        size_hp_box = [128,16] #TODO not fixed here
-        distance_hp_corner = [12,8] #10
+        size_hp_box = [self.info["CellsNumberPrior"][1], self.info["CellsNumberPrior"][0]]
+        distance_hp_corner = [self.info["PositionHPPrior"][1], self.info["PositionHPPrior"][0]]
         hp_boxes = []
         pos_hps = np.array(np.where(material_ids == np.max(material_ids))).T
         for idx in range(len(pos_hps)):
             pos_hp = pos_hps[idx]
             corner_ll = pos_hp - np.array(distance_hp_corner)                           # corner lower left
             corner_ur = pos_hp + np.array(size_hp_box) - np.array(distance_hp_corner)   # corner upper right
-            assert corner_ll[0] >= 0 and corner_ur[0] < self.inputs.shape[1], f"HP BOX at {pos_hp} is in x-direction not in domain"
-            assert corner_ll[1] >= 0 and corner_ur[1] < self.inputs.shape[2], f"HP BOX at {pos_hp} is in y-direction not in domain"
+            assert corner_ll[0] >= 0 and corner_ur[0] < self.inputs.shape[1], f"HP BOX at {pos_hp} is in x-direction (0, {self.inputs.shape[1]}) not in domain"
+            assert corner_ll[1] >= 0 and corner_ur[1] < self.inputs.shape[2], f"HP BOX at {pos_hp} is in y-direction (0, {self.inputs.shape[2]}) not in domain"
             tmp_input = self.inputs[:, corner_ll[0]:corner_ur[0], corner_ll[1]:corner_ur[1]].copy()
             tmp_mat_ids = np.array(np.where(tmp_input == np.max(material_ids))).T
             if len(tmp_mat_ids) > 1:
@@ -84,10 +84,12 @@ class Domain:
                     if (tmp_pos[1:2] != distance_hp_corner).all():
                         tmp_input[tmp_pos[0],tmp_pos[1], tmp_pos[2]] = 0
             tmp_hp = HeatPump(id = f"RUN_{idx}", pos = pos_hp, orientation = 0, inputs = tmp_input, dist_corner_hp=distance_hp_corner)
+            tmp_hp.recalc_sdf(self.info) # TODO scaling a bit off
             hp_boxes.append(tmp_hp)
         return hp_boxes
                 
     def add_hp(self, hp):
+        # compose learned fields into large domain with list of ids, pos, orientations
         for i in range(hp.field.shape[0]):
             for j in range(hp.field.shape[1]):
                 x,y = self.coord_trafo(hp.pos, (i-hp.dist_corner_hp[0],j-hp.dist_corner_hp[1]), hp.orientation)
@@ -110,12 +112,11 @@ class Domain:
         properties = expand_property_names(fields)
         n_subplots = len(properties)
         if "t" in fields:
-            n_subplots += 1
+            n_subplots += 2
         plt.subplots(n_subplots, 1, sharex=True,figsize=(20, 3*(n_subplots)))
         idx = 1
         for property in properties:
             plt.subplot(n_subplots, 1, idx)
-
             if property == "Temperature [C]":
                 plt.imshow(self.t_field.T)
                 plt.gca().invert_yaxis()
@@ -125,6 +126,13 @@ class Domain:
                 idx+=1
                 plt.subplot(n_subplots, 1, idx)
                 self.label = self.reverse_norm(self.label, property)
+                plt.imshow(abs(self.t_field.T-np.squeeze(self.label.T)))
+                plt.gca().invert_yaxis()
+                plt.xlabel("y [cells]")
+                plt.ylabel("x [cells]")
+                _aligned_colorbar(label=f"Absolute error in {property}")
+                idx+=1
+                plt.subplot(n_subplots, 1, idx)
                 plt.imshow(self.label.T)
             else:
                 field = self.get_input_field_from_name(property)
@@ -147,6 +155,14 @@ class HeatPump:
         self.field = None                                       # np.ndarray, temperature field, calculated by NN
         assert self.pos[0] >= 0 and self.pos[1] >= 0, f"Heat pump position at {self.pos} is outside of domain"
 
+    def recalc_sdf(self, info):
+        # recalculate sdf per box (cant be done in prepare_dataset because of several hps in one domain)
+        # TODO sizedependent... - works as long as boxes have same size in training as in prediction
+        index_id = info["Inputs"]["Material ID"]["index"]
+        index_sdf = info["Inputs"]["SDF"]["index"]
+        loc_hp = self.dist_corner_hp
+        assert self.inputs[index_id, loc_hp[0], loc_hp[1]] == 1, f"No HP at {self.pos}"
+        self.inputs[index_sdf] = SignedDistanceTransform().sdf(self.inputs[index_id].copy(), Tensor(loc_hp))
 
     def apply_nn(self, model, domain:Domain):
         input = unsqueeze(Tensor(self.inputs), 0)
@@ -155,6 +171,7 @@ class HeatPump:
         output = output.squeeze().detach().numpy()
         output = domain.reverse_norm(output, property="Temperature [C]")
         self.field = output
+        save(Tensor(output), f"{self.id}.pt")
 
 class Stitching:
     def __init__(self, method, background_temperature):
@@ -169,7 +186,7 @@ class Stitching:
                 return additional_value
             else:
                 return current_value + additional_value - self.background_temperature
-            
+
 def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:str, device:str="cuda:0"):
     """
     assumptions:
@@ -185,6 +202,8 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
                         input_variables = "pksi",
                         power2trafo = False,
                         info = load_yaml(datasets_model_trained_with_path, "info")) # norm with data from dataset that NN was trained with!
+    else:
+        print(f"Domain {dataset_domain_path} already prepared")
         
     domain = Domain(dataset_domain_path, stitching_method="max")
     # generate 1hp-boxes and extract information like perm and ids+pos+orientations-list, BEFORE: choose 1hp-boxes
@@ -195,12 +214,8 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
     model = load_model({"model_choice": "unet", "in_channels": 4}, model_path, "model", device)
     for hp in single_hps:
         hp.apply_nn(model, domain)
-        plt.imshow(hp.field.T)
-        _aligned_colorbar()
-        plt.show()
-        # compose learned fields into large domain with list of ids, pos, orientations
         domain.add_hp(hp)
-    domain.plot_field("tkis")
+    domain.plot_field("tpki")
     #TODO LATER: smooth large domain and extend heat plumes
 
 def set_paths(dataset_large_name:str, model_name:str, dataset_trained_model_name:str):
@@ -225,9 +240,9 @@ def set_paths(dataset_large_name:str, model_name:str, dataset_trained_model_name
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset_large", type=str, default="large_2hps_simulation")
-    parser.add_argument("--model", type=str, default="current_unet_benchmark_dataset_2d_100datapoints_assumedsteadystate")
-    parser.add_argument("--dataset_boxes", type=str, default="benchmark_dataset_2d_100datapoints_assumedsteadystate")
+    parser.add_argument("--dataset_large", type=str, default="benchmark_dataset_2d_2hps_iso_perm")
+    parser.add_argument("--model", type=str, default="current_unet_benchmark_dataset_2d_100datapoints")
+    parser.add_argument("--dataset_boxes", type=str, default="benchmark_dataset_2d_100datapoints")
     args = parser.parse_args()
     args.device = "cpu"
     pipeline(dataset_large_name=args.dataset_large, model_name=args.model, dataset_trained_model_name=args.dataset_boxes, device=args.device)
