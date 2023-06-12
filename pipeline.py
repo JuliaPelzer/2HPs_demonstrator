@@ -24,7 +24,14 @@ class Domain:
         self.label: np.ndarray              = self.load_datapoint(info_path, case = "Labels")
         self.t_field: np.ndarray            = np.ones(self.size) * self.background_temperature
         self.stitching:Stitching            = Stitching(stitching_method, self.background_temperature)
-
+        try:
+            print(f"Pressure: {self.get_input_field_from_name('Liquid Pressure [Pa]').max(), self.get_input_field_from_name('Liquid Pressure [Pa]').min()}")
+        except:
+            print(f"Pressure gradient: {self.get_input_field_from_name('Pressure Gradient [-]').max(), self.get_input_field_from_name('Pressure Gradient [-]').min()}")
+            assert self.get_input_field_from_name('Pressure Gradient [-]').max() <= 1 and self.get_input_field_from_name('Pressure Gradient [-]').min() >= 0, "Pressure Gradient [-] not in range (0,1)"
+        print(f"Permeability: {self.get_input_field_from_name('Permeability X [m^2]').max(), self.get_input_field_from_name('Permeability X [m^2]').min()}")
+        assert self.get_input_field_from_name('Permeability X [m^2]').max() <= 1 and self.get_input_field_from_name('Permeability X [m^2]').min() >= 0, "Permeability X [m^2] not in range (0,1)"
+        
     def load_datapoint(self, dataset_domain_path:str, case:str = "Inputs"):
         # load dataset of large domain
         file_name = "RUN_0.pt"
