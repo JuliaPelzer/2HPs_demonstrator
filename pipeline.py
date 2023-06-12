@@ -117,7 +117,7 @@ class Domain:
         # TODO
         pass
 
-    def plot_field(self, fields:str = "t"):
+    def plot(self, fields:str = "t"):
         properties = expand_property_names(fields)
         n_subplots = len(properties)
         if "t" in fields:
@@ -173,14 +173,48 @@ class HeatPump:
         loc_hp = self.dist_corner_hp
         assert self.inputs[index_id, loc_hp[0], loc_hp[1]] == 1, f"No HP at {self.pos}"
         self.inputs[index_sdf] = SignedDistanceTransform().sdf(self.inputs[index_id].copy(), Tensor(loc_hp))
-
-    def apply_nn(self, model, domain:Domain):
+        assert self.inputs[index_sdf].max() == 1 and self.inputs[index_sdf].min() == 0, "SDF not in [0,1]"
+        
+    def apply_nn(self, model):
         input = unsqueeze(Tensor(self.inputs), 0)
         model.eval()
         output = model(input)
         output = output.squeeze().detach().numpy()
-        output = domain.reverse_norm(output, property="Temperature [C]")
         self.field = output
+
+    def save(self):
+        dir = "HP-Boxes"
+        output = self.tmp_label #np.expand_dims(self.tmp_label, 0)
+        if os.path.exists(dir):    
+            save(self.inputs, f"{dir}/Inputs/hp_{self.id}.pt")
+            save(output, f"{dir}/Labels/hp_{self.id}.pt")
+        else:
+            os.makedirs(f"{dir}/Inputs")
+            os.makedirs(f"{dir}/Labels")
+            save(self.inputs, f"{dir}/Inputs/hp_{self.id}.pt")
+            save(output, f"{dir}/Labels/hp_{self.id}.pt")
+
+    def plot(self):
+        n_subplots = len(self.inputs) + 1
+        plt.subplots(n_subplots, 1, sharex=True,figsize=(20, 3*(n_subplots)))
+        idx = 1
+        for input in self.inputs:
+            plt.subplot(n_subplots, 1, idx)
+            plt.imshow(input.T)
+            plt.gca().invert_yaxis()
+            plt.xlabel("y [cells]")
+            plt.ylabel("x [cells]")
+            _aligned_colorbar()
+            idx += 1
+        plt.subplot(n_subplots, 1, idx)
+        plt.imshow(self.field.T)
+        plt.gca().invert_yaxis()
+        plt.xlabel("y [cells]")
+        plt.ylabel("x [cells]")
+        _aligned_colorbar(label="Temperature [C]")
+        dir = "HP-Boxes"
+        plt.savefig(f"{dir}/hp_{self.id}.png")
+
 
 class Stitching:
     def __init__(self, method, background_temperature):
