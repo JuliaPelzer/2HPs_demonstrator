@@ -18,7 +18,7 @@ from data.transforms import SignedDistanceTransform
 class Domain:
     def __init__(self, info_path:str, stitching_method:str="max"):
         self.info = load_yaml(info_path, "info")
-        self.size:tuple[int, int]           = [self.info["CellsNumber"][1], self.info["CellsNumber"][0]]        # (x, y), cell-ids
+        self.size:tuple[int, int]           = [self.info["CellsNumber"][0], self.info["CellsNumber"][1]]        # (x, y), cell-ids
         self.background_temperature: float  = 10.6
         self.inputs: np.ndarray             = self.load_datapoint(info_path, case = "Inputs")
         self.label: np.ndarray              = self.load_datapoint(info_path, case = "Labels")
@@ -59,7 +59,7 @@ class Domain:
             std =  self.info["Labels"][property]["std"]
 
         if norm=="Rescale":
-            out_min, out_max = (0,1)        # Achtung! Hardcoded, values same as in transforms.NormalizeTransform.out_min/max
+            out_min, out_max = (0,1)        # TODO Achtung! Hardcoded, values same as in transforms.NormalizeTransform.out_min/max
             delta = max - min
             data = (data - out_min) / (out_max - out_min) * delta + min
         elif norm=="Standardize":
@@ -73,8 +73,8 @@ class Domain:
     def extract_hp_boxes(self):
         # TODO decide: get hp_boxes based on grad_p or based on v or get squared boxes around hp
         material_ids = self.get_input_field_from_name("Material ID")
-        size_hp_box = [self.info["CellsNumberPrior"][1], self.info["CellsNumberPrior"][0]]
-        distance_hp_corner = [self.info["PositionHPPrior"][1], self.info["PositionHPPrior"][0]]
+        size_hp_box = [self.info["CellsNumberPrior"][0], self.info["CellsNumberPrior"][1]]
+        distance_hp_corner = [self.info["PositionHPPrior"][0], self.info["PositionHPPrior"][1]]
         hp_boxes = []
         pos_hps = np.array(np.where(material_ids == np.max(material_ids))).T
         for idx in range(len(pos_hps)):
