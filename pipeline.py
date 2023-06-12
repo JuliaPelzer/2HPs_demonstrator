@@ -230,21 +230,25 @@ class Stitching:
             else:
                 return current_value + additional_value - self.background_temperature
 
-def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:str, device:str="cuda:0"):
+def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:str, input_pg:str, device:str="cuda:0"):
     """
     assumptions:
     - 1hp-boxes are generated already
     - network is trained
+    - cell sizes of 1hp-boxes and domain are the same
+    - boundaries of boxes around hps are within domain
     """
     # prepare large dataset if not done yet
-    datasets_raw_domain_dir, datasets_prepared_domain_dir, dataset_domain_path, datasets_model_trained_with_path, model_path = set_paths(dataset_large_name, model_name, dataset_trained_model_name)
+    datasets_raw_domain_dir, datasets_prepared_domain_dir, dataset_domain_path, datasets_model_trained_with_path, model_path, name_extension = set_paths(dataset_large_name, model_name, dataset_trained_model_name, input_pg)
+    
     if not os.path.exists(dataset_domain_path):
         prepare_dataset(raw_data_directory = datasets_raw_domain_dir,
                         datasets_path = datasets_prepared_domain_dir,
                         dataset_name = dataset_large_name,
-                        input_variables = "pksi",
+                        input_variables = input_pg + "ksi",
                         power2trafo = False,
-                        info = load_yaml(datasets_model_trained_with_path, "info")) # norm with data from dataset that NN was trained with!
+                        info = load_yaml(datasets_model_trained_with_path, "info"),
+                        name_extension = name_extension) # norm with data from dataset that NN was trained with!
     else:
         print(f"Domain {dataset_domain_path} already prepared")
         
@@ -255,37 +259,49 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
 
     # apply learned NN to predict the heat plumes
     model = load_model({"model_choice": "unet", "in_channels": 4}, model_path, "model", device)
+    hp : HeatPump
     for hp in single_hps:
-        hp.apply_nn(model, domain)
+        hp.apply_nn(model)
+        hp.save()
+        hp.field = domain.reverse_norm(hp.field, property="Temperature [C]")
+        hp.plot()
         domain.add_hp(hp)
-    domain.plot_field("tpki")
+    domain.plot("tki"+input_pg)
+    
     #TODO LATER: smooth large domain and extend heat plumes
 
-def set_paths(dataset_large_name:str, model_name:str, dataset_trained_model_name:str):
-    remote = False
+def set_paths(dataset_large_name:str, model_name:str, dataset_trained_model_name:str, input_pg:str):
+    if input_pg == "g":
+        name_extension = "_grad_p"
+    else:
+        name_extension = ""
     if os.path.exists("/scratch/sgs/pelzerja/"):
-        remote = True
-    if remote:
+        # on remote computer: ipvsgpu1
         datasets_raw_domain_dir = "/scratch/sgs/pelzerja/datasets/2hps_demonstrator"
         datasets_prepared_domain_dir = "/home/pelzerja/pelzerja/test_nn/datasets_prepared/2hps_demonstrator"
         models_dir = "/home/pelzerja/pelzerja/test_nn/1HP_NN/runs"
         datasets_prepared_1hp_dir = "/home/pelzerja/pelzerja/test_nn/datasets_prepared"
     else:
+        # on another computer, hopefully on lapsgs29
         datasets_raw_domain_dir = "/home/pelzerja/Development/datasets/2hps_demonstrator"
         datasets_prepared_domain_dir = "/home/pelzerja/Development/datasets_prepared/2hps_demonstrator"
         models_dir = "/home/pelzerja/Development/1HP_NN/runs"
         datasets_prepared_1hp_dir = "/home/pelzerja/Development/datasets_prepared/1HP_NN"
-    dataset_domain_path = os.path.join(datasets_prepared_domain_dir, dataset_large_name)
+    dataset_domain_path = os.path.join(datasets_prepared_domain_dir, dataset_large_name+name_extension)
     datasets_model_trained_with_path = os.path.join(datasets_prepared_1hp_dir, dataset_trained_model_name)
     model_path = os.path.join(models_dir, model_name)
 
-    return datasets_raw_domain_dir, datasets_prepared_domain_dir, dataset_domain_path, datasets_model_trained_with_path, model_path
+    return datasets_raw_domain_dir, datasets_prepared_domain_dir, dataset_domain_path, datasets_model_trained_with_path, model_path, name_extension
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_large", type=str, default="benchmark_dataset_2d_2hps_iso_perm")
     parser.add_argument("--model", type=str, default="current_unet_benchmark_dataset_2d_100datapoints")
     parser.add_argument("--dataset_boxes", type=str, default="benchmark_dataset_2d_100datapoints")
+    parser.add_argument("--input_pg", type=str, default="g")
     args = parser.parse_args()
+    if args.input_pg == "g":
+        args.model += "_grad_p"
+        args.dataset_boxes += "_grad_p"
     args.device = "cpu"
-    pipeline(dataset_large_name=args.dataset_large, model_name=args.model, dataset_trained_model_name=args.dataset_boxes, device=args.device)
+    pipeline(dataset_large_name=args.dataset_large, model_name=args.model, dataset_trained_model_name=args.dataset_boxes, device=args.device, input_pg=args.input_pg)
