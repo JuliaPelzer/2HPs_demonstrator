@@ -81,17 +81,19 @@ class Domain:
             pos_hp = pos_hps[idx]
             corner_ll = pos_hp - np.array(distance_hp_corner)                           # corner lower left
             corner_ur = pos_hp + np.array(size_hp_box) - np.array(distance_hp_corner)   # corner upper right
-            assert corner_ll[0] >= 0 and corner_ur[0] < self.inputs.shape[1], f"HP BOX at {pos_hp} is in x-direction (0, {self.inputs.shape[1]}) not in domain"
-            assert corner_ll[1] >= 0 and corner_ur[1] < self.inputs.shape[2], f"HP BOX at {pos_hp} is in y-direction (0, {self.inputs.shape[2]}) not in domain"
+            assert corner_ll[0] >= 0 and corner_ur[0] < self.inputs.shape[1], f"HP BOX at {pos_hp} is with ({corner_ll[0]}, {corner_ur[0]}) in x-direction (0, {self.inputs.shape[1]}) not in domain"
+            assert corner_ll[1] >= 0 and corner_ur[1] < self.inputs.shape[2], f"HP BOX at {pos_hp} is with ({corner_ll[1]}, {corner_ur[1]}) in y-direction (0, {self.inputs.shape[2]}) not in domain"
             tmp_input = self.inputs[:, corner_ll[0]:corner_ur[0], corner_ll[1]:corner_ur[1]].copy()
+            tmp_label = self.label[:, corner_ll[0]:corner_ur[0], corner_ll[1]:corner_ur[1]].copy()
+
             tmp_mat_ids = np.array(np.where(tmp_input == np.max(material_ids))).T
             if len(tmp_mat_ids) > 1:
                 for i in range(len(tmp_mat_ids)):
                     tmp_pos = tmp_mat_ids[i]
                     if (tmp_pos[1:2] != distance_hp_corner).all():
                         tmp_input[tmp_pos[0],tmp_pos[1], tmp_pos[2]] = 0
-            tmp_hp = HeatPump(id = f"RUN_{idx}", pos = pos_hp, orientation = 0, inputs = tmp_input, dist_corner_hp=distance_hp_corner)
-            tmp_hp.recalc_sdf(self.info) # TODO scaling a bit off
+            tmp_hp = HeatPump(id = f"RUN_{idx}", pos = pos_hp, orientation = 0, inputs = tmp_input, dist_corner_hp=distance_hp_corner, tmp_label = tmp_label)
+            tmp_hp.recalc_sdf(self.info)
             hp_boxes.append(tmp_hp)
         return hp_boxes
                 
@@ -153,13 +155,14 @@ class Domain:
         plt.savefig("test.png")
 
 class HeatPump:
-    def __init__(self, id, pos, orientation, inputs=None, dist_corner_hp=None):
+    def __init__(self, id, pos, orientation, inputs=None, dist_corner_hp=None, tmp_label=None):
         self.id:str = id                                        # RUN_{ID}
         self.pos:list = np.array([int(pos[0]), int(pos[1])])    #(x,y), cell-ids
         self.orientation:float = float(orientation)
         self.dist_corner_hp: np.ndarray = dist_corner_hp        # distance from corner of heat pump to corner of box
         self.inputs:np.ndarray = inputs                         # extracted from large domain
         self.field = None                                       # np.ndarray, temperature field, calculated by NN
+        self.tmp_label = tmp_label
         assert self.pos[0] >= 0 and self.pos[1] >= 0, f"Heat pump position at {self.pos} is outside of domain"
 
     def recalc_sdf(self, info):
