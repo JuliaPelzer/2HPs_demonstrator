@@ -92,18 +92,18 @@ class Domain:
                     tmp_pos = tmp_mat_ids[i]
                     if (tmp_pos[1:2] != distance_hp_corner).all():
                         tmp_input[tmp_pos[0],tmp_pos[1], tmp_pos[2]] = 0
-            tmp_hp = HeatPump(id = f"RUN_{idx}", pos = pos_hp, orientation = 0, inputs = tmp_input, dist_corner_hp=distance_hp_corner, tmp_label = tmp_label)
+            tmp_hp = HeatPump(id = f"RUN_{idx}", pos = pos_hp, orientation = 0, inputs = tmp_input, dist_corner_hp=distance_hp_corner, label = tmp_label)
             tmp_hp.recalc_sdf(self.info)
             hp_boxes.append(tmp_hp)
         return hp_boxes
                 
-    def add_hp(self, hp):
+    def add_hp(self, hp: "HeatPump"):
         # compose learned fields into large domain with list of ids, pos, orientations
-        for i in range(hp.field.shape[0]):
-            for j in range(hp.field.shape[1]):
+        for i in range(hp.prediction_1HP.shape[0]):
+            for j in range(hp.prediction_1HP.shape[1]):
                 x,y = self.coord_trafo(hp.pos, (i-hp.dist_corner_hp[0],j-hp.dist_corner_hp[1]), hp.orientation)
                 if 0 <= x < self.t_field.shape[0] and 0 <= y < self.t_field.shape[1]:
-                    self.t_field[x,y] = self.stitching(self.t_field[x, y], hp.field[i, j])
+                    self.t_field[x,y] = self.stitching(self.t_field[x, y], hp.prediction_1HP[i, j])
 
     def coord_trafo(self, fixpoint:tuple, position:tuple, orientation:float):
         """
@@ -155,14 +155,15 @@ class Domain:
         plt.savefig("test.png")
 
 class HeatPump:
-    def __init__(self, id, pos, orientation, inputs=None, dist_corner_hp=None, tmp_label=None):
+    def __init__(self, id, pos, orientation, inputs=None, dist_corner_hp=None, label=None):
         self.id:str = id                                        # RUN_{ID}
         self.pos:list = np.array([int(pos[0]), int(pos[1])])    #(x,y), cell-ids
         self.orientation:float = float(orientation)
         self.dist_corner_hp: np.ndarray = dist_corner_hp        # distance from corner of heat pump to corner of box
         self.inputs:np.ndarray = inputs                         # extracted from large domain
-        self.field = None                                       # np.ndarray, temperature field, calculated by NN
-        self.tmp_label = tmp_label
+        self.prediction_1HP = None                              # np.ndarray, temperature field, calculated by 1HP-NN
+        self.prediction_2HP = None                              # np.ndarray, temperature field, calculated by 2HP-NN
+        self.label = label
         assert self.pos[0] >= 0 and self.pos[1] >= 0, f"Heat pump position at {self.pos} is outside of domain"
 
     def recalc_sdf(self, info):
@@ -180,19 +181,16 @@ class HeatPump:
         model.eval()
         output = model(input)
         output = output.squeeze().detach().numpy()
-        self.field = output
+        self.prediction_1HP = output
 
     def save(self):
         dir = "HP-Boxes"
-        output = self.tmp_label #np.expand_dims(self.tmp_label, 0)
-        if os.path.exists(dir):    
-            save(self.inputs, f"{dir}/Inputs/hp_{self.id}.pt")
-            save(output, f"{dir}/Labels/hp_{self.id}.pt")
-        else:
+        output = self.label
+        if not os.path.exists(dir):    
             os.makedirs(f"{dir}/Inputs")
             os.makedirs(f"{dir}/Labels")
-            save(self.inputs, f"{dir}/Inputs/hp_{self.id}.pt")
-            save(output, f"{dir}/Labels/hp_{self.id}.pt")
+        save(self.inputs, f"{dir}/Inputs/hp_{self.id}.pt")
+        save(output, f"{dir}/Labels/hp_{self.id}.pt")
 
     def plot(self):
         n_subplots = len(self.inputs) + 1
@@ -207,7 +205,7 @@ class HeatPump:
             _aligned_colorbar()
             idx += 1
         plt.subplot(n_subplots, 1, idx)
-        plt.imshow(self.field.T)
+        plt.imshow(self.prediction_1HP.T)
         plt.gca().invert_yaxis()
         plt.xlabel("y [cells]")
         plt.ylabel("x [cells]")
@@ -263,7 +261,7 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
     for hp in single_hps:
         hp.apply_nn(model)
         hp.save()
-        hp.field = domain.reverse_norm(hp.field, property="Temperature [C]")
+        hp.prediction_1HP = domain.reverse_norm(hp.prediction_1HP, property="Temperature [C]")
         hp.plot()
         domain.add_hp(hp)
     domain.plot("tki"+input_pg)
