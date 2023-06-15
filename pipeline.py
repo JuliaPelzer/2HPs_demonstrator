@@ -243,7 +243,7 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
         prepare_dataset(raw_data_directory = datasets_raw_domain_dir,
                         datasets_path = datasets_prepared_domain_dir,
                         dataset_name = dataset_large_name,
-                        input_variables = input_pg + "ksi",
+                        input_variables = input_pg + "ksio",
                         power2trafo = False,
                         info = load_yaml(datasets_model_trained_with_path, "info"),
                         name_extension = name_extension) # norm with data from dataset that NN was trained with!
@@ -256,7 +256,7 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
     single_hps = domain.extract_hp_boxes()
 
     # apply learned NN to predict the heat plumes
-    model = load_model({"model_choice": "unet", "in_channels": 4}, model_path, "model", device)
+    model = load_model({"model_choice": "unet", "in_channels": 5}, model_path, "model", device)
     hp : HeatPump
     for hp in single_hps:
         hp.apply_nn(model)
@@ -264,7 +264,7 @@ def pipeline(dataset_large_name:str, model_name:str, dataset_trained_model_name:
         hp.prediction_1HP = domain.reverse_norm(hp.prediction_1HP, property="Temperature [C]")
         hp.plot()
         domain.add_hp(hp)
-    domain.plot("tki"+input_pg)
+    domain.plot("tkio"+input_pg)
     
     #TODO LATER: smooth large domain and extend heat plumes
 
