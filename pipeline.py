@@ -25,17 +25,11 @@ class Domain:
         self.prediction_1HP: np.ndarray            = np.ones(self.size) * self.background_temperature
         self.prediction_2HP: np.ndarray            = np.ones(self.size) * self.background_temperature
         self.stitching:Stitching            = Stitching(stitching_method, self.background_temperature)
-        # for var in ["SDF", "Material ID [-]", "Original Temperature [C]", "Liquid Pressure [Pa]", "Pressure Gradient [-]", "Permeability X [m^2]"]:
-        #     try:
-        #         print(f"{var} in {self.get_input_field_from_name(var).max(), self.get_input_field_from_name(var).min()}")
-        #     except:
-        #         print(f"{var} not in inputs")
         assert self.get_input_field_from_name('Permeability X [m^2]').max() <= 1 and self.get_input_field_from_name('Permeability X [m^2]').min() >= 0, "Permeability X [m^2] not in range (0,1)"
         try:
             assert self.get_input_field_from_name('Pressure Gradient [-]').max() <= 1 and self.get_input_field_from_name('Pressure Gradient [-]').min() >= 0, "Pressure Gradient [-] not in range (0,1)"
         except:
             print(f"Pressure: {self.get_input_field_from_name('Liquid Pressure [Pa]').max(), self.get_input_field_from_name('Liquid Pressure [Pa]').min()}")
-            # assert self.get_input_field_from_name('Liquid Pressure [Pa]').max() <= 1 and self.get_input_field_from_name('Liquid Pressure [Pa]').min() >= 0, "Liquid Pressure [Pa] not in range (0,1)"
         
     def load_datapoint(self, dataset_domain_path:str, case:str = "Inputs", file_name = "RUN_0.pt"):
         # load dataset of large domain
@@ -106,12 +100,6 @@ class Domain:
         for idx in range(len(pos_hps)):
             pos_hp = pos_hps[idx]
             corner_ll, corner_ur = get_box_corners(pos_hp, size_hp_box, distance_hp_corner, self.inputs.shape[1:])
-            # if corner_ll[0] < 0 or corner_ur[0] >= self.inputs.shape[1]:
-            #     print(f"HP BOX at {pos_hp} is with ({corner_ll[0]}, {corner_ur[0]}) in x-direction (0, {self.inputs.shape[1]}) not in domain")
-            #     continue
-            # if corner_ll[1] < 0 or corner_ur[1] >= self.inputs.shape[2]:
-            #     print(f"HP BOX at {pos_hp} is with ({corner_ll[1]}, {corner_ur[1]}) in y-direction (0, {self.inputs.shape[2]}) not in domain")
-            #     continue
             tmp_input = self.inputs[:, corner_ll[0]:corner_ur[0], corner_ll[1]:corner_ur[1]].copy()
             tmp_label = self.label[:, corner_ll[0]:corner_ur[0], corner_ll[1]:corner_ur[1]].copy()
 
