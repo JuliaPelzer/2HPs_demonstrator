@@ -13,6 +13,7 @@ sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN") # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")      # relevant for local   
 from networks.models import load_model
 from utils.visualize_data import _aligned_colorbar
+from utils.utils import beep
 from prepare_dataset import prepare_dataset, expand_property_names
 from data.utils import load_yaml, save_yaml
 from data.transforms import SignedDistanceTransform
@@ -197,7 +198,7 @@ class Domain:
             plt.ylabel("x [cells]")
             _aligned_colorbar(label=property)
             idx += 1
-        plt.savefig("test.png")
+        plt.savefig("testDomain.png")
 
 class HeatPump:
     def __init__(self, id, pos, orientation, inputs=None, dist_corner_hp=None, label=None):
@@ -352,7 +353,7 @@ def box_generation_2HP(run_file:str, run_id:int, dataset_domain_path:str, model_
     
     if case in ["2HP prepare", "2HP apply"]:
         for hp in single_hps:
-            domain.overwrite_boxes_prediction_1HP(hp)
+            domain.overwrite_boxes_prediction_1HP(hp) #, case="separate") # CASE both inputs merged together: "merged" vs "separate": where each additional plume is an additional field
             hp.prediction_1HP = domain.norm(hp.prediction_1HP, property="Temperature [C]")
             hp.inputs[domain.get_index_from_name("Original Temperature [C]")] = hp.prediction_1HP.copy()
             if case=="2HP prepare":
@@ -428,4 +429,5 @@ if __name__ == "__main__":
     args.device = "cpu"
 
     pipeline(dataset_large_name=args.dataset_large, model_name_1HP=args.model, dataset_trained_model_name=args.dataset_boxes, case=args.case, input_pg=args.input_pg, model_name_2HP=args.model_2hp, device=args.device)
-    
+
+    beep()
