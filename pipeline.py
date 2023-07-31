@@ -1,22 +1,23 @@
-import os
-import sys
 import argparse
-import pathlib
 import logging
-from tqdm.auto import tqdm
-import numpy as np
+import os
+import pathlib
+import sys
 from math import cos, sin
+
 import matplotlib.pyplot as plt
-from torch import squeeze, unsqueeze, load, Tensor, save
+import numpy as np
+from torch import Tensor, load, save, squeeze, unsqueeze
+from tqdm.auto import tqdm
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
-from networks.models import load_model
-from utils.visualize_data import _aligned_colorbar
-from utils.utils import beep
-from prepare_dataset import prepare_dataset, expand_property_names
-from data.utils import load_yaml, save_yaml
 from data.transforms import SignedDistanceTransform
+from data.utils import load_yaml, save_yaml
+from networks.models import load_model
+from prepare_dataset import expand_property_names, prepare_dataset
+from utils.utils import beep
+from utils.visualize_data import _aligned_colorbar
 
 
 class Domain:
