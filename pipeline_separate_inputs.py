@@ -4,6 +4,7 @@ import os
 import pathlib
 import shutil
 import sys
+import time
 from math import cos, sin
 
 import matplotlib.pyplot as plt
@@ -362,7 +363,7 @@ class HeatPump:
             if hp.id != self.id:
                 assert (
                     self.interim_outputs.shape == hp.prediction_1HP.shape
-                ), "Shapes don't fit - line 241"
+                ), "Shapes don't fit - line 366"
                 # get overlapping piece of 2nd hp T-box
                 rel_pos = hp.pos - self.pos
                 zeros2 = [0, 0]
@@ -500,6 +501,9 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
     - cell sizes of 1hp-boxes and domain are the same
     - boundaries of boxes around at least one hp is within domain
     """
+    timestamp_begin = time.ctime()
+    time_begin = time.perf_counter()
+
     # prepare large dataset if not done yet
     (
         datasets_raw_domain_dir,
@@ -526,13 +530,15 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
         {"model_choice": "unet", "in_channels": 5}, model_1hp_path, "model", device
     )
 
+    time_start_prep_domain = time.perf_counter()
+    inputs_prep = input_pg + "ksi"
     # prepare domain dataset if not yet happened
     if not os.path.exists(dataset_domain_path):
         prepare_dataset(
             raw_data_directory=datasets_raw_domain_dir,
             datasets_path=datasets_prepared_domain_dir,
             dataset_name=dataset_large_name,
-            input_variables=input_pg + "ksio",
+            input_variables=inputs_prep,
             power2trafo=False,
             info=load_yaml(datasets_model_trained_with_path, "info"),
             name_extension=name_extension,
@@ -540,7 +546,10 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
     else:
         print(f"Domain {dataset_domain_path} already prepared")
 
+    time_start_prep_2hp = time.perf_counter()
+    avg_time_inference_1hp = 0
     # prepare 2HP dataset
+    print(dataset_domain_path)
     list_runs = os.listdir(os.path.join(dataset_domain_path, "Inputs"))
     for run_file in tqdm(list_runs, desc="2HP prepare", total=len(list_runs)):
         run_id = f'{run_file.split(".")[0]}_'
@@ -551,7 +560,9 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
         # apply learned NN to predict the heat plumes
         hp: HeatPump
         for hp in single_hps:
+            time_start_run_1hp = time.perf_counter()
             hp.prediction_1HP = hp.apply_nn(model_1HP)
+            avg_time_inference_1hp += time.perf_counter() - time_start_run_1hp
             hp.prediction_1HP = domain.reverse_norm(
                 hp.prediction_1HP, property="Temperature [C]"
             )
@@ -575,6 +586,8 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
             # hp.plot(dir=destination_2hp_prep, data_to_plot=np.array([hp.prediction_1HP, hp.interim_outputs]), names=np.array(["prediction_1HP", "other HPs temperature field"]))
             logging.info(f"Saved {hp.id} for run {run_id}")
         # domain.plot("goksit")
+    time_end = time.perf_counter()
+    avg_inference_times = avg_time_inference_1hp / len(list_runs)
 
     # save infos of info file about separated (only 2!) inputs
     save_config_of_separate_inputs(
@@ -589,6 +602,26 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
         "model_name_2HP": model_name_2HP,
     }
     save_yaml(cla, path=destination_2hp_prep, name_file="command_line_args")
+
+    # save measurements
+    with open(os.path.join(os.getcwd(), "runs", destination_2hp_prep, f"measurements.yaml"), "w") as f:
+        f.write(f"timestamp of beginning: {timestamp_begin}\n")
+        f.write(f"timestamp of end: {time.ctime()}\n")
+        f.write(f"duration of whole process including visualisation in seconds: {(time_end-time_begin)}\n")
+        f.write(f"model 1HP: {model_name_1HP}\n")
+        f.write(f"model 2HP: {model_name_2HP}\n")
+        f.write(f"input params: {inputs_prep}\n")
+        f.write(f"separate inputs: {True}\n")
+        f.write(f"dataset prepared location: {datasets_prepared_domain_dir}\n")
+        f.write(f"dataset name: {dataset_trained_model_name}\n")
+        f.write(f"dataset large name: {dataset_large_name}\n")
+        f.write(f"name_destination_folder: {destination_2hp_prep}\n")
+        f.write(f"avg inference times for 1HP-NN in seconds: {avg_inference_times}\n")
+        f.write(f"device: {device}\n")
+        f.write(f"duration of preparing domain in seconds: {(time_start_prep_2hp-time_start_prep_domain)}\n")
+        f.write(f"duration of preparing 2HP in seconds: {(time_end-time_start_prep_2hp)}\n")
+        f.write(f"duration of preparing 2HP /run in seconds: {(time_end-time_start_prep_2hp)/len(list_runs)}\n")
+        f.write(f"duration of whole process in seconds: {(time_end-time_begin)}\n")
 
 
 def save_config_of_separate_inputs(domain_info, path, name_file="info"):
@@ -627,8 +660,8 @@ def set_paths(
         datasets_prepared_domain_dir = (
             "/home/pelzerja/pelzerja/test_nn/datasets_prepared/2hps_demonstrator"
         )
-        models_1hp_dir = "/home/pelzerja/pelzerja/test_nn/1HP_NN/runs"
-        datasets_prepared_1hp_dir = "/home/pelzerja/pelzerja/test_nn/datasets_prepared"
+        models_1hp_dir = "/home/pelzerja/pelzerja/test_nn/1HP_NN/runs/experiments"
+        datasets_prepared_1hp_dir = "/home/pelzerja/pelzerja/test_nn/datasets_prepared/experiments"
     else:
         # on another computer, hopefully on lapsgs29
         datasets_raw_domain_dir = (
