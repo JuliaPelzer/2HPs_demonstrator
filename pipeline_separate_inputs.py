@@ -51,8 +51,7 @@ class Domain:
             self.get_input_field_from_name("Permeability X [m^2]").max() > 1
             or self.get_input_field_from_name("Permeability X [m^2]").min() < 0
         ):
-            origin_2hp_prep = "/home/pelzerja/Development/datasets_prepared/2hps_demonstrator/dataset_2hps_1fixed_1000dp_grad_p"
-            # TODO rm absolute path
+            origin_2hp_prep = info_path
             shutil.move(
                 os.path.join(origin_2hp_prep, "Inputs", file_name),
                 os.path.join(
@@ -85,8 +84,7 @@ class Domain:
         )
 
         if p_related_field.max() > 1 or p_related_field.min() < 0:
-            origin_2hp_prep = "/home/pelzerja/Development/datasets_prepared/2hps_demonstrator/dataset_2hps_1fixed_1000dp_grad_p"
-            # TODO rm absolute path
+            origin_2hp_prep = info_path
             shutil.move(
                 os.path.join(origin_2hp_prep, "Inputs", file_name),
                 os.path.join(
@@ -607,7 +605,6 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
     with open(os.path.join(os.getcwd(), "runs", destination_2hp_prep, f"measurements.yaml"), "w") as f:
         f.write(f"timestamp of beginning: {timestamp_begin}\n")
         f.write(f"timestamp of end: {time.ctime()}\n")
-        f.write(f"duration of whole process including visualisation in seconds: {(time_end-time_begin)}\n")
         f.write(f"model 1HP: {model_name_1HP}\n")
         f.write(f"model 2HP: {model_name_2HP}\n")
         f.write(f"input params: {inputs_prep}\n")
