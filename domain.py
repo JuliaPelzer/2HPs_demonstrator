@@ -168,40 +168,41 @@ class Domain:
             self.info["CellsNumberPrior"][1],
         ]
         distance_hp_corner = [
-            self.info["PositionHPPrior"][0],
-            self.info["PositionHPPrior"][1],
+            23, # self.info["PositionHPPrior"][1],
+            7, # self.info["PositionHPPrior"][0] # TODO manually changed 9 to 7? where to find, do automatically
+            
         ]
         hp_boxes = []
         pos_hps = np.array(np.where(material_ids == np.max(material_ids))).T
         for idx in range(len(pos_hps)):
-            try:
-                pos_hp = pos_hps[idx]
-                corner_ll, corner_ur = get_box_corners(pos_hp, size_hp_box, distance_hp_corner, self.inputs.shape[1:], run_name=self.file_name,)
-                tmp_input = self.inputs[:, corner_ll[0] : corner_ur[0], corner_ll[1] : corner_ur[1]].copy()
-                tmp_label = self.label[:, corner_ll[0] : corner_ur[0], corner_ll[1] : corner_ur[1]].copy()
+            # try:
+            pos_hp = pos_hps[idx]
+            corner_ll, corner_ur = get_box_corners(pos_hp, size_hp_box, distance_hp_corner, self.inputs.shape[1:], run_name=self.file_name,)
+            tmp_input = self.inputs[:, corner_ll[0] : corner_ur[0], corner_ll[1] : corner_ur[1]].copy()
+            tmp_label = self.label[:, corner_ll[0] : corner_ur[0], corner_ll[1] : corner_ur[1]].copy()
 
-                tmp_mat_ids = np.array(np.where(tmp_input == np.max(material_ids))).T
-                if len(tmp_mat_ids) > 1:
-                    for i in range(len(tmp_mat_ids)):
-                        tmp_pos = tmp_mat_ids[i]
-                        if (tmp_pos[1:2] != distance_hp_corner).all():
-                            tmp_input[tmp_pos[0], tmp_pos[1], tmp_pos[2]] = 0
+            tmp_mat_ids = np.array(np.where(tmp_input == np.max(material_ids))).T
+            if len(tmp_mat_ids) > 1:
+                for i in range(len(tmp_mat_ids)):
+                    tmp_pos = tmp_mat_ids[i]
+                    if (tmp_pos[1:2] != distance_hp_corner).all():
+                        tmp_input[tmp_pos[0], tmp_pos[1], tmp_pos[2]] = 0
 
-                tmp_hp = HeatPump(
-                    id=idx,
-                    pos=pos_hp,
-                    orientation=0,
-                    inputs=tmp_input,
-                    dist_corner_hp=distance_hp_corner,
-                    label=tmp_label,
-                )
-                tmp_hp.recalc_sdf(self.info)
-                hp_boxes.append(tmp_hp)
-                logging.info(
-                    f"HP BOX at {pos_hp} is with ({corner_ll}, {corner_ur}) in domain"
-                )
-            except:
-                logging.warning(f"BOX of HP {idx} at {pos_hp} is not in domain")
+            tmp_hp = HeatPump(
+                id=idx,
+                pos=pos_hp,
+                orientation=0,
+                inputs=tmp_input,
+                dist_corner_hp=distance_hp_corner,
+                label=tmp_label,
+            )
+            tmp_hp.recalc_sdf(self.info)
+            hp_boxes.append(tmp_hp)
+            logging.info(
+                f"HP BOX at {pos_hp} is with ({corner_ll}, {corner_ur}) in domain"
+            )
+            # except:
+            #     logging.warning(f"BOX of HP {idx} at {pos_hp} is not in domain")
         return hp_boxes
 
     def add_hp(self, hp: "HeatPump", prediction_field: np.ndarray):

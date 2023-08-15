@@ -78,7 +78,6 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
         # print(f"Starting with {run_id}")
         domain = Domain(dataset_domain_path, stitching_method="max", file_name=run_file)
         # generate 1hp-boxes and extract information like perm and ids etc.
-        print(run_id, domain.skip_datapoint)
         if domain.skip_datapoint:
             print(f"Skipping {run_id}")
             continue
