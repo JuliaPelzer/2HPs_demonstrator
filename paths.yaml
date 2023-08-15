@@ -1,0 +1,6 @@
+datasets_raw_domain_dir: /home/pelzerja/Development/datasets/2hps_demonstrator
+datasets_prepared_domain_dir: /home/pelzerja/Development/datasets_prepared/2HP_domain
+models_1hp_dir: /home/pelzerja/Development/models/1HP_NN/best_paper23
+models_2hp_dir: /home/pelzerja/Development/models/2HP_NN
+datasets_prepared_1hp_dir: /home/pelzerja/Development/datasets_prepared/1HP_NN/datasets_prepared_paper
+datasets_prepared_2hp_dir: /home/pelzerja/Development/datasets_prepared/2HP_NN
