@@ -1,5 +1,6 @@
 import os
 import sys
+import pathlib
 import yaml
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
@@ -26,39 +27,34 @@ def save_config_of_separate_inputs(domain_info, path, name_file="info"):
 
 def set_paths(
     dataset_large_name: str,
-    model_name_1hp: str,
-    dataset_trained_model_name: str,
-    # input_pg: str,
-    inputs_prep: str,
+    preparation_case: str,
     model_name_2hp: str = None,
     name_extension: str = "",
 ):
-    # if input_pg == "g":
-    #     name_extension = "_grad_p"
-    # else:
-    #     name_extension = ""
-    
     if os.path.exists("paths.yaml"):
         with open("paths.yaml", "r") as f:
             paths = yaml.load(f, Loader=yaml.SafeLoader)
             datasets_raw_domain_dir = paths["datasets_raw_domain_dir"]
             datasets_prepared_domain_dir = paths["datasets_prepared_domain_dir"]
-            models_1hp_dir = paths["models_1hp_dir"]
+            prepared_1hp_dir = paths["prepared_1hp_dir"]
             models_2hp_dir = paths["models_2hp_dir"]
-            datasets_prepared_1hp_dir = paths["datasets_prepared_1hp_dir"]
             datasets_prepared_2hp_dir = paths["datasets_prepared_2hp_dir"]
     else:
+        # error
+        raise Exception("paths.yaml does not exist")
+    
+    # get model name, get dataset, get inputs
+    prepared_1hp_dir = pathlib.Path(prepared_1hp_dir) / preparation_case
+    for path in prepared_1hp_dir.iterdir():
+        if path.is_dir():
+            if "current" in path.name:
+                model_1hp_path = prepared_1hp_dir / path.name
+            elif "dataset" in path.name:
+                datasets_model_trained_with_path = prepared_1hp_dir / path.name
 
-        if os.path.exists("/scratch/sgs/pelzerja/"):
-            # on remote computer: ipvsgpu1
-            datasets_raw_domain_dir = "/scratch/sgs/pelzerja/datasets/2hps_demonstrator"
-            datasets_prepared_domain_dir = ("/home/pelzerja/pelzerja/test_nn/datasets_prepared/2hps_demonstrator")
-            models_1hp_dir = "/home/pelzerja/pelzerja/test_nn/1HP_NN/runs/experiments"
-            datasets_prepared_1hp_dir = "/home/pelzerja/pelzerja/test_nn/datasets_prepared/experiments"
-
+    inputs_prep = str(preparation_case).split("_")[0]
+    
     dataset_domain_path = os.path.join(datasets_prepared_domain_dir, dataset_large_name +"_"+inputs_prep + name_extension)
-    datasets_model_trained_with_path = os.path.join(datasets_prepared_1hp_dir, dataset_trained_model_name)
-    model_1hp_path = os.path.join(models_1hp_dir, model_name_1hp)
     model_2hp_path = None
     if model_name_2hp is not None:
         model_2hp_path = os.path.join(models_2hp_dir, model_name_2hp)
@@ -70,6 +66,6 @@ def set_paths(
         datasets_model_trained_with_path,
         model_1hp_path,
         model_2hp_path,
-        # name_extension,
         datasets_prepared_2hp_dir,
+        inputs_prep,
     )

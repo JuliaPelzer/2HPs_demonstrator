@@ -23,9 +23,7 @@ from utils.utils import beep
 
 def pipeline_prepare_separate_inputs_for_2HPNN(
     dataset_large_name: str,
-    model_name_1HP: str,
-    dataset_trained_model_name: str,
-    input_pg: str,
+    preparation_case: str,
     model_name_2HP: str = None,
     device: str = "cuda:0",
 ):
@@ -40,15 +38,14 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
     time_begin = time.perf_counter()
 
     # prepare large dataset if not done yet
-    inputs_prep = input_pg + "ksi"
-    (datasets_raw_domain_dir, datasets_prepared_domain_dir, dataset_domain_path, datasets_model_trained_with_path, model_1hp_path, _, datasets_prepared_2hp_dir
-     ) = set_paths(dataset_large_name, model_name_1HP, dataset_trained_model_name, inputs_prep, model_name_2hp=model_name_2HP,)
+    (datasets_raw_domain_dir, datasets_prepared_domain_dir, dataset_domain_path, datasets_model_trained_with_path, model_1hp_path, _, datasets_prepared_2hp_dir, inputs_prep
+     ) = set_paths(dataset_large_name, preparation_case, model_name_2hp=model_name_2HP,)
     destination_2hp_prep = pathlib.Path(datasets_prepared_2hp_dir, f"{dataset_large_name}_2hp_test")
     destination_2hp_prep.mkdir(parents=True, exist_ok=True)
 
     # load model from 1hp-NN
     model_1HP = load_model(
-        {"model_choice": "unet", "in_channels": 4}, model_1hp_path, "model", device
+        {"model_choice": "unet", "in_channels": len(inputs_prep)}, model_1hp_path, "model", device
     )
 
     time_start_prep_domain = time.perf_counter()
@@ -65,9 +62,9 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
             power2trafo=False,
             info=load_yaml(datasets_model_trained_with_path, "info"),
         )  # norm with data from dataset that NN was trained with!
+        print(f"Domain {dataset_domain_path} prepared")
     else:
         print(f"Domain {dataset_domain_path} already prepared")
-    print(datasets_model_trained_with_path)
     
     time_start_prep_2hp = time.perf_counter()
     avg_time_inference_1hp = 0
@@ -75,13 +72,12 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
     list_runs = os.listdir(os.path.join(dataset_domain_path, "Inputs"))
     for run_file in tqdm(list_runs, desc="2HP prepare", total=len(list_runs)):
         run_id = f'{run_file.split(".")[0]}_'
-        # print(f"Starting with {run_id}")
         domain = Domain(dataset_domain_path, stitching_method="max", file_name=run_file)
         # generate 1hp-boxes and extract information like perm and ids etc.
         if domain.skip_datapoint:
-            print(f"Skipping {run_id}")
+            logging.warning(f"Skipping {run_id}")
             continue
-        # TODO next - what happened while this was still executed???
+
         single_hps = domain.extract_hp_boxes()
         # apply learned NN to predict the heat plumes
         hp: HeatPump
@@ -122,9 +118,7 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
     # save command line arguments
     cla = {
         "dataset_large_name": dataset_large_name,
-        "model_name_1HP": model_name_1HP,
-        "dataset_trained_model_name": dataset_trained_model_name,
-        "input_pg": input_pg,
+        "preparation_case": preparation_case,
         "model_name_2HP": model_name_2HP,
     }
     save_yaml(cla, path=destination_2hp_prep, name_file="command_line_args")
@@ -133,12 +127,12 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
     with open(os.path.join(os.getcwd(), "runs", destination_2hp_prep, f"measurements.yaml"), "w") as f:
         f.write(f"timestamp of beginning: {timestamp_begin}\n")
         f.write(f"timestamp of end: {time.ctime()}\n")
-        f.write(f"model 1HP: {model_name_1HP}\n")
+        f.write(f"model 1HP: {model_1hp_path}\n")
         f.write(f"model 2HP: {model_name_2HP}\n")
         f.write(f"input params: {inputs_prep}\n")
         f.write(f"separate inputs: {True}\n")
         f.write(f"dataset prepared location: {datasets_prepared_domain_dir}\n")
-        f.write(f"dataset name: {dataset_trained_model_name}\n")
+        f.write(f"dataset name: {datasets_model_trained_with_path}\n")
         f.write(f"dataset large name: {dataset_large_name}\n")
         f.write(f"name_destination_folder: {destination_2hp_prep}\n")
         f.write(f"avg inference times for 1HP-NN in seconds: {avg_inference_times}\n")
@@ -150,23 +144,20 @@ def pipeline_prepare_separate_inputs_for_2HPNN(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--preparation_case", type=str, default="gksi_100dp")
     parser.add_argument("--dataset_large", type=str, default="benchmark_dataset_2d_2hps_iso_perm")
-    parser.add_argument("--model", type=str, default="current_unet_benchmark_dataset_2d_100datapoints")
-    parser.add_argument("--dataset_boxes", type=str, default="benchmark_dataset_2d_100datapoints_pksi")
-    parser.add_argument("--input_pg", type=str, default="g")
     parser.add_argument("--model_2hp", type=str, default=None)
 
     args = parser.parse_args()
     args.device = "cpu"
+    assert args.preparation_case in ["gksi_100dp", "gksi_1000dp", "pksi_100dp", "pksi_1000dp"], "preparation_case must be one of ['gksi_100dp', 'gksi_1000dp', 'pksi_100dp', 'pksi_1000dp']"
 
     # ! ALWAYS have the correct input_pg (same as in dataset_boxes) otherwise all files are excluded
 
 
     pipeline_prepare_separate_inputs_for_2HPNN(
         dataset_large_name=args.dataset_large,
-        model_name_1HP=args.model,
-        dataset_trained_model_name=args.dataset_boxes,
-        input_pg=args.input_pg,
+        preparation_case=args.preparation_case,
         model_name_2HP=args.model_2hp,
         device=args.device,
     )
