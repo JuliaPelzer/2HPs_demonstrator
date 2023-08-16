@@ -1,6 +1,8 @@
 import logging
 import pathlib
 import sys
+from typing import List
+
 import matplotlib.pyplot as plt
 import numpy as np
 from torch import Tensor, save, unsqueeze
@@ -9,6 +11,7 @@ sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
 from data.transforms import SignedDistanceTransform
 from utils.visualize_data import _aligned_colorbar
+
 
 class HeatPump:
     def __init__(self, id, pos, orientation, inputs, dist_corner_hp=None, label=None):
@@ -49,8 +52,11 @@ class HeatPump:
             self.inputs[index_sdf].max() == 1 and self.inputs[index_sdf].min() == 0
         ), "SDF not in [0,1]"
 
-    def apply_nn(self, model):
-        input = unsqueeze(Tensor(self.inputs), 0)
+    def apply_nn(self, model, inputs:str="inputs"):
+        if inputs == "inputs":
+            input = unsqueeze(Tensor(self.inputs), 0)
+        elif inputs == "interim_outputs":
+            input = unsqueeze(Tensor(np.array([self.prediction_1HP, self.interim_outputs])), 0)
         model.eval()
         output = model(input)
         output = output.squeeze().detach().numpy()
@@ -165,3 +171,58 @@ class HeatPump:
         else:
             logging.warning("No data to plot given")
 
+    def measure_accuracy(self, domain:"Domain", plot_args: List = [False, "default.png"]):
+        pred = self.prediction_2HP
+        label = domain.reverse_norm(self.label, property="Temperature [C]")[0]
+        pic_mae = abs(pred - label)
+        pic_mse = abs(pred - label) ** 2
+
+        if plot_args[0]:
+            plt.figure()
+            n_subplots = 6
+            plt.subplots(n_subplots, 1, sharex=True, figsize=(20, 3 * (n_subplots)))
+
+            plt.subplot(n_subplots, 1, 1)
+            plt.imshow(self.prediction_1HP.T)
+            plt.gca().invert_yaxis()
+            plt.xlabel("x [cells]")
+            plt.ylabel("y [cells]")
+            _aligned_colorbar(label="In: 1HP-Prediction [C]")
+
+            plt.subplot(n_subplots, 1, 2)
+            plt.imshow(self.interim_outputs.T)
+            plt.gca().invert_yaxis()
+            plt.xlabel("x [cells]")
+            plt.ylabel("y [cells]")
+            _aligned_colorbar(label="In: Overlap [C]")
+
+            plt.subplot(n_subplots, 1, 3)
+            plt.imshow(pred.T)
+            plt.gca().invert_yaxis()
+            plt.xlabel("x [cells]")
+            plt.ylabel("y [cells]")
+            _aligned_colorbar(label="Prediction: Combination [C]")
+
+            plt.subplot(n_subplots, 1, 4)
+            plt.imshow(label.T)
+            plt.gca().invert_yaxis()
+            plt.xlabel("x [cells]")
+            plt.ylabel("y [cells]")
+            _aligned_colorbar(label="Label: True Combination [C]")
+
+            plt.subplot(n_subplots, 1, 5)
+            plt.imshow(pic_mae.T)
+            plt.gca().invert_yaxis()
+            plt.xlabel("x [cells]")
+            plt.ylabel("y [cells]")
+            _aligned_colorbar(label="Error: MAE [C]")
+
+            plt.subplot(n_subplots, 1, 6)
+            plt.imshow(pic_mse.T)
+            plt.gca().invert_yaxis()
+            plt.xlabel("x [cells]")
+            plt.ylabel("y [cells]")
+            _aligned_colorbar(label="Error: MSE [C]")
+            
+            plt.savefig(plot_args[1])
+        return np.mean(pic_mae), np.mean(pic_mse)
