@@ -4,20 +4,20 @@ import os
 import pathlib
 import sys
 import time
-import yaml
 
 import numpy as np
+import yaml
 from tqdm.auto import tqdm
 
-from heat_pump import HeatPump
 from domain import Domain
-from utils_2hp import set_paths, save_config_of_separate_inputs
+from heat_pump import HeatPump
+from utils_2hp import save_config_of_separate_inputs, set_paths
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
-from data.utils import load_yaml, save_yaml, SettingsPrepare
+from data.utils import SettingsPrepare, load_yaml, save_yaml
 from networks.models import load_model
-from prepare_dataset import  prepare_dataset
+from prepare_dataset import prepare_dataset
 from utils.utils import beep
 
 
