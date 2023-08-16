@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 
 from domain import Domain
 from heat_pump import HeatPump
-from utils_2hp import set_paths, check_all_datasets_prepared
+from utils_2hp import check_all_datasets_prepared, set_paths
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local

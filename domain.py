@@ -16,8 +16,9 @@ from prepare_dataset import expand_property_names
 from utils.utils import beep
 from utils.visualize_data import _aligned_colorbar
 
-from stitching import Stitching
 from heat_pump import HeatPump
+from stitching import Stitching
+
 
 class Domain:
     def __init__(
