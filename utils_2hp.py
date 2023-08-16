@@ -1,11 +1,14 @@
 import os
-import sys
 import pathlib
+import sys
+from typing import List
+
 import yaml
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
 from data.utils import save_yaml
+
 
 def save_config_of_separate_inputs(domain_info, path, name_file="info"):
     # ATTENTION! Lots of hardcoding
@@ -69,3 +72,12 @@ def set_paths(
         datasets_prepared_2hp_dir,
         inputs_prep,
     )
+
+def check_all_datasets_prepared(paths: List):
+    # check if all datasets required are prepared ( domain and 2hp-nn dataset )
+    for path in paths:
+        if not os.path.exists(path):
+            # error
+            raise ValueError(f"{path} does not exist")
+        else:
+            print(f"Dataset {path} prepared")
