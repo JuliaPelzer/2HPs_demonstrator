@@ -6,7 +6,6 @@ import sys
 import time
 
 import numpy as np
-import yaml
 from tqdm.auto import tqdm
 
 from domain import Domain
@@ -18,7 +17,6 @@ sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
 from data_stuff.utils import SettingsPrepare, load_yaml, save_yaml
 from networks.models import load_model
 from prepare_dataset import prepare_dataset
-from utils.utils import beep
 
 
 def prepare_separate_inputs_for_2HPNN(
@@ -152,5 +150,3 @@ if __name__ == "__main__":
         preparation_case=args.preparation_case,
         device=args.device,
     )
-
-    # beep()
