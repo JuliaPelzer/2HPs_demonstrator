@@ -9,7 +9,7 @@ from torch import Tensor, save, unsqueeze
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
-from data.transforms import SignedDistanceTransform
+from data_stuff.transforms import SignedDistanceTransform
 from utils.visualize_data import _aligned_colorbar
 
 

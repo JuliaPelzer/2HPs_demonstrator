@@ -14,6 +14,7 @@ from utils_2hp import check_all_datasets_prepared, set_paths
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
+from data_stuff.utils import SettingsPrepare, load_yaml
 from networks.models import load_model
 from utils.utils import beep
 
@@ -182,5 +183,3 @@ if __name__ == "__main__":
         model_name_2HP=args.model_2hp,
         device=args.device,
     )
-
-    beep()

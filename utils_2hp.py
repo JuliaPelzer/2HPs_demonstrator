@@ -7,7 +7,7 @@ import yaml
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
-from data.utils import save_yaml
+from data_stuff.utils import save_yaml
 
 
 def save_config_of_separate_inputs(domain_info, path, name_file="info"):
@@ -57,7 +57,7 @@ def set_paths(
 
     inputs_prep = str(preparation_case).split("_")[0]
     
-    dataset_domain_path = os.path.join(datasets_prepared_domain_dir, dataset_large_name +"_"+inputs_prep + name_extension)
+    dataset_domain_path = pathlib.Path(datasets_prepared_domain_dir) / f"{dataset_large_name}_{inputs_prep}{name_extension}"
     model_2hp_path = None
     if model_name_2hp is not None:
         model_2hp_path = os.path.join(models_2hp_dir, model_name_2hp)
@@ -78,6 +78,6 @@ def check_all_datasets_prepared(paths: List):
     for path in paths:
         if not os.path.exists(path):
             # error
-            raise ValueError(f"{path} does not exist")
+            raise ValueError(f"Dataset {path} not prepared")
         else:
             print(f"Dataset {path} prepared")

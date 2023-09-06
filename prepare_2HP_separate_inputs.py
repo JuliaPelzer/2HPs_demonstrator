@@ -15,7 +15,7 @@ from utils_2hp import save_config_of_separate_inputs, set_paths
 
 sys.path.append("/home/pelzerja/pelzerja/test_nn/1HP_NN")  # relevant for remote
 sys.path.append("/home/pelzerja/Development/1HP_NN")  # relevant for local
-from data.utils import SettingsPrepare, load_yaml, save_yaml
+from data_stuff.utils import SettingsPrepare, load_yaml, save_yaml
 from networks.models import load_model
 from prepare_dataset import prepare_dataset
 from utils.utils import beep
@@ -39,7 +39,7 @@ def prepare_separate_inputs_for_2HPNN(
     # prepare large dataset if not done yet
     (datasets_raw_domain_dir, datasets_prepared_domain_dir, dataset_domain_path, datasets_model_trained_with_path, model_1hp_path, _, datasets_prepared_2hp_dir, inputs_prep
      ) = set_paths(dataset_large_name, preparation_case)
-    destination_2hp_prep = pathlib.Path(datasets_prepared_2hp_dir, f"{dataset_large_name}_2hp")
+    destination_2hp_prep = pathlib.Path(datasets_prepared_2hp_dir, f"{dataset_large_name}_2hp_{preparation_case}")
     destination_2hp_prep.mkdir(parents=True, exist_ok=True)
 
     # load model from 1hp-NN
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_large", type=str, default="benchmark_dataset_2d_2hps_iso_perm")
     parser.add_argument("--device", type=str, default="cpu")
     args = parser.parse_args()
-    assert args.preparation_case in ["gksi_100dp", "gksi_1000dp", "pksi_100dp", "pksi_1000dp"], "preparation_case must be one of ['gksi_100dp', 'gksi_1000dp', 'pksi_100dp', 'pksi_1000dp']"
+    assert args.preparation_case in ["gksi_100dp", "ogksi_1000dp", "gksi_1000dp", "pksi_100dp", "pksi_1000dp"], "preparation_case must be one of ['gksi_100dp', 'gksi_1000dp', 'pksi_100dp', 'pksi_1000dp']"
 
     prepare_separate_inputs_for_2HPNN(
         dataset_large_name=args.dataset_large,
@@ -153,4 +153,4 @@ if __name__ == "__main__":
         device=args.device,
     )
 
-    beep()
+    # beep()
