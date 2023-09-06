@@ -28,6 +28,22 @@ def save_config_of_separate_inputs(domain_info, path, name_file="info"):
     }
     save_yaml(shortened_infos, path, name_file)
 
+def save_config_of_merged_inputs(separate_info, path, name_file="info"):
+    # ATTENTION! Lots of hardcoding
+    temperature_info = separate_info["Labels"]["Temperature [C]"]
+    shortened_input = {
+        "Temperature prediction (merged) [C]": temperature_info.copy(),
+    }
+    shortened_input["Temperature prediction (merged) [C]"]["index"] = 0
+    shortened_infos = {
+        "Inputs": shortened_input,
+        "Labels": separate_info["Labels"],
+        "CellsNumber": separate_info["CellsNumber"],
+        "CellsNumberPrior": separate_info["CellsNumberPrior"],
+        "CellsSize": separate_info["CellsSize"],
+    }
+    save_yaml(shortened_infos, path, name_file)
+
 def set_paths(
     dataset_large_name: str,
     preparation_case: str,
