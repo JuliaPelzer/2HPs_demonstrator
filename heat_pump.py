@@ -16,9 +16,7 @@ from utils.visualize_data import _aligned_colorbar
 class HeatPump:
     def __init__(self, id, pos, orientation, inputs, dist_corner_hp=None, label=None):
         self.id: str = id  # RUN_{ID}
-        self.pos: list = np.array(
-            [int(pos[0]), int(pos[1])]
-        )  # (x,y), cell-ids # TODO(y,x)??
+        self.pos: list = np.array([int(pos[0]), int(pos[1])])  # (x,y), cell-ids
         self.orientation: float = float(orientation)
         self.dist_corner_hp: np.ndarray = (
             dist_corner_hp  # distance from corner of heat pump to corner of box
