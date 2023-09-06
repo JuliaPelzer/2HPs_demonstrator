@@ -222,7 +222,8 @@ class Domain:
                 ):
                     self.prediction[x, y] = self.stitching(
                         self.prediction[x, y], prediction_field[i, j]
-                    )
+                    ) # TODO TODO changed stitching to pointwise max (np.maximum instead of max) - does this break now!
+                    # TODO TODO or problem with np vs torch?
 
     def coord_trafo(self, fixpoint: tuple, position: tuple, orientation: float):
         """
